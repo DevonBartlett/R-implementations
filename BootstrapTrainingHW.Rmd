@@ -1,0 +1,240 @@
+---
+title: "Machine Learning Homework 5 Devon Bartlett"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Section 8 Homework #5 ------------------
+
+Exercise 5:
+
+Suppose we produce ten bootstrapped samples from a data set 
+containing red and green classes. We then apply a classification tree
+to each bootstrapped sample and, for a specific value of X, produce
+10 estimates of P(Class is Red|X):
+
+    For this solution we can use the majority vote approach, or the
+      average probability approach. For majority vote, we see 6 red and
+      four green, giving the value that of red. With average probability, we 
+      choose green because the value is 0.45.
+
+
+Exercise 6:
+
+Provide a detailed explanation of the algorithm that is used to fit a
+regression tree.
+
+    The first step is to perform a recursive binary splitting on the data. 
+    The goal here is to find the single best partition of the data that 
+    reduces the most RSS. (Top down approach, greed!) This process is applied to
+    each split part of the data. THEN a cost complexity pruning is used on the 
+    larger tree to find a sequence of best subtrees as they relate to the parameter, alpha.
+    When alpha = 0 we have our original tree. Next, use K-fold Cross Validation to find the 
+    best alpha that reduces error. Return to the entire data set and use the found alpha value.
+
+
+Exercise 7:
+
+In the lab, we applied random forests to the Boston data using mtry =
+6 and using ntree = 25 and ntree = 500. Create a plot displaying the
+test error resulting from random forests on this data set for a more
+comprehensive range of values for mtry and ntree. You can model
+your plot after Figure 8.10. Describe the results obtained.
+
+```{r}
+library(MASS)
+library(randomForest)
+
+set.seed(1)
+train <- sample(1:nrow(Boston), nrow(Boston) / 2)
+Boston.train <- Boston[train, -14]
+Boston.test <- Boston[-train, -14]
+Y.train <- Boston[train, 14]
+Y.test <- Boston[-train, 14]
+rf.boston1 <- randomForest(Boston.train, y = Y.train, xtest = Boston.test, ytest = Y.test, mtry = ncol(Boston) - 1, ntree = 500)
+rf.boston2 <- randomForest(Boston.train, y = Y.train, xtest = Boston.test, ytest = Y.test, mtry = (ncol(Boston) - 1) / 2, ntree = 500)
+rf.boston3 <- randomForest(Boston.train, y = Y.train, xtest = Boston.test, ytest = Y.test, mtry = sqrt(ncol(Boston) - 1), ntree = 500)
+plot(1:500, rf.boston1$test$mse, col = "green", type = "l", xlab = "Number of Trees", ylab = "Test MSE", ylim = c(10, 30))
+lines(1:500, rf.boston2$test$mse, col = "red", type = "l")
+lines(1:500, rf.boston3$test$mse, col = "blue", type = "l")
+legend("topright", c("m = p", "m = p/2", "m = sqrt(p)"), col = c("green", "red", "blue"), cex = 1, lty = 1)
+```
+
+    The test MSE is very higher for low numbers of tree, and decreases as we increase
+    in the amount of trees. The test MSE for ALL predictors is higher than that of half or the 
+    square root of the predictors. 
+    
+    
+    
+Exercise 8: 
+
+In the lab, a classification tree was applied to the Carseats data set after
+converting Sales into a qualitative response variable. Now we will
+seek to predict Sales using regression trees and related approaches,
+treating the response as a quantitative variable.
+
+(a) Split the data set into a training set and a test set.
+```{r}
+library(ISLR)
+set.seed(1)
+train <- sample(1:nrow(Carseats), nrow(Carseats) / 2)
+Carseats.train <- Carseats[train, ]
+Carseats.test <- Carseats[-train, ]
+```
+
+
+(b) Fit a regression tree to the training set. Plot the tree, and interpret the results. What test MSE do you obtain?
+```{r}
+library(tree)
+tree.carseats <- tree(Sales ~ ., data = Carseats.train)
+summary(tree.carseats)
+
+plot(tree.carseats)
+text(tree.carseats, pretty = 0)
+
+yhat <- predict(tree.carseats, newdata = Carseats.test)
+mean((yhat - Carseats.test$Sales)^2)
+```
+
+
+(c) Use cross-validation in order to determine the optimal level of
+tree complexity. Does pruning the tree improve the test MSE?
+```{r}
+cv.carseats <- cv.tree(tree.carseats)
+plot(cv.carseats$size, cv.carseats$dev, type = "b")
+tree.min <- which.min(cv.carseats$dev)
+points(tree.min, cv.carseats$dev[tree.min], col = "red", cex = 2, pch = 20)
+
+prune.carseats <- prune.tree(tree.carseats, best = 8)
+plot(prune.carseats)
+text(prune.carseats, pretty = 0)
+
+yhat <- predict(prune.carseats, newdata = Carseats.test)
+mean((yhat - Carseats.test$Sales)^2)
+```
+
+
+(d) Use the bagging approach in order to analyze this data. What
+test MSE do you obtain? Use the importance() function to determine which variables are most important.
+```{r}
+bag.carseats <- randomForest(Sales ~ ., data = Carseats.train, mtry = 10, ntree = 500, importance = TRUE)
+yhat.bag <- predict(bag.carseats, newdata = Carseats.test)
+mean((yhat.bag - Carseats.test$Sales)^2)
+
+importance(bag.carseats)
+```
+
+
+(e) Use random forests to analyze this data. What test MSE do you
+obtain? Use the importance() function to determine which variables are most important. Describe the effect of m, the number of
+variables considered at each split, on the error rate obtained.
+```{r}
+rf.carseats <- randomForest(Sales ~ ., data = Carseats.train, mtry = 3, ntree = 500, importance = TRUE)
+yhat.rf <- predict(rf.carseats, newdata = Carseats.test)
+mean((yhat.rf - Carseats.test$Sales)^2)
+
+importance(rf.carseats)
+```
+
+
+(f) Now analyze the data using BART, and report your results.
+```{r}
+#library(BART)
+#rf.carseats <- bartMachine(Sales ~ ., data = Carseats.train, mtry = 3, ntree = 500, importance = TRUE)
+#yhat.rf <- predict(rf.carseats, newdata = Carseats.test)
+#mean((yhat.rf - Carseats.test$Sales)^2)
+
+#importance(rf.carseats)
+```
+    
+    I am going to look into this method more. My code did not seem to work. 
+
+Exercise 12:
+
+Apply boosting, bagging, random forests, and BART to a data set
+of your choice. Be sure to fit the models on a training set and to
+evaluate their performance on a test set. How accurate are the results
+compared to simple methods like linear or logistic regression? Which
+of these approaches yields the best performance?
+
+    I attempted using the Boston and Weekly data sets but my GLM algorithm did not converge. Upon using the College data set I found some predictor that worked well. 
+
+SETUP AND BAGGING
+
+```{r}
+library(gbm)
+library(tibble)
+library(dplyr)
+set.seed(234)
+df <- tbl_df(College)
+N <- dim(df)[1]
+p <- dim(df)[2]-1
+tr_sample <- sample(1:N, 2*N/3)
+train <- df[tr_sample,]
+test <- df[-tr_sample,]
+
+bagging <- randomForest(Grad.Rate~., data = train, importance = T, mtry = p, ntree = 500)
+bagging_pred <- predict(bagging, test)
+mean((bagging_pred-test$Grad.Rate)^2)
+```
+
+RANDOM FOREST
+
+```{r}
+MSE_list <- sapply(1:(p-1), function(i){
+  randomF <- randomForest(Grad.Rate~., data = train, importance = T, mtry = i, ntree = 500)
+  randomF_pred <- predict(randomF, test)
+  mean((randomF_pred-test$Grad.Rate)^2)
+})
+minNbrTrees <- which.min(MSE_list)
+minNbrTrees
+
+min(MSE_list)
+```
+
+BOOSTING
+
+```{r}
+library(ggplot2)
+lambdas <- seq(0.2, 4, by=0.1)
+test_errors <- sapply(lambdas, function(i){
+  boost <- gbm(Grad.Rate ~ ., data = train, distribution = "gaussian", n.trees = 50, shrinkage = lambdas[i])
+  test_pred <- predict(boost, test, n.trees = 50)
+  mean((test$Grad.Rate - test_pred)^2)
+})
+ggplot(data.frame(x=lambdas, y=test_errors), aes(x=x, y=y)) + xlab("Shrinkage") + ylab("Test MSE") + geom_point()
+
+min(test_errors)
+
+lambdas[which.min(test_errors)]
+```
+
+LINEAR REGRESSION
+
+```{r}
+lm_fit <- lm(Grad.Rate~., data = train)
+lm_pred <- predict(lm_fit, test)
+mean( (lm_pred - test$Grad.Rate)^2 )
+```
+
+
+LASSO
+
+```{r}
+library(glmnet)
+x <- model.matrix(Grad.Rate ~ ., data = train)
+y <- train$Grad.Rate
+x.test <- model.matrix(Grad.Rate ~ ., data = test)
+lasso_fit <- glmnet(x, y, alpha = 1)
+lasso_pred <- predict(lasso_fit, s = 0.01, newx = x.test)
+mean((test$Grad.Rate - lasso_pred)^2)
+```
+
+    Random forest seems to have the lowest classification error
+    as compared to the others which perform with very similar errors.
+    

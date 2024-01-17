@@ -1,0 +1,287 @@
+---
+title: "Machine Learning Homework 4 Devon Bartlett"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Sections 5 and 6 - Homework #4
+
+Exercise 5.3.(B):
+What are the advantages and disadvantages of k-fold cross-validation relative to:
+
+i. The validation set approach?
+
+    The advantage is that it is relatively simple to implement. It is disadvantageous due to its 
+    high variablilty and it only makes use of a subset of the data to fit the model.
+
+ii. LOOCV?
+
+    Although being at a disadvantage with how computationally intensive LOOCV is, it is at an 
+    advantage with its much lower bias.
+    Splitting by observations makes it easy to reproduce the LOOCV fitting. Validation is not the same way.
+  
+  
+Exercise 5.4:
+Suppose that we use some statistical learning method to make a prediction for the response Y for a particular value of the predictor X.
+Carefully describe how we might estimate the standard deviation of our prediction.
+
+    This is to be done using the Bootstrap method. It is necessary to obtain an N number of X and Y random
+    samples from the original data set. This gives N number of estimates for alpha, 
+    which a mean is found for and used in the formula for Standard Deviation. 
+    (Square root of the sum of the mean - alpha squared, times 1/(n-1))
+    
+Exercise 5.5:
+
+```{r}
+# Part A
+library(ISLR)
+attach(Default)
+set.seed(1)
+fit.glm <- glm(default ~ income + balance, data = Default, family = "binomial")
+summary(fit.glm)
+
+# Part B
+train <- sample(dim(Default)[1], dim(Default)[1] / 2)
+
+fit.glm2 <- glm(default ~ income + balance, data = Default, family = "binomial", subset = train)
+summary(fit.glm)
+
+probs <- predict(fit.glm2, newdata = Default[-train, ], type = "response")
+pred.glm2 <- rep("No", length(probs))
+pred.glm2[probs > 0.5] <- "Yes"
+
+mean(pred.glm2 != Default[-train, ]$default)
+
+
+# Part C
+train <- sample(dim(Default)[1], dim(Default)[1] / 2)
+fit.glm <- glm(default ~ income + balance, data = Default, family = "binomial", subset = train)
+probs <- predict(fit.glm, newdata = Default[-train, ], type = "response")
+pred.glm <- rep("No", length(probs))
+pred.glm[probs > 0.5] <- "Yes"
+mean(pred.glm != Default[-train, ]$default)
+
+train <- sample(dim(Default)[1], dim(Default)[1] / 2)
+fit.glm <- glm(default ~ income + balance, data = Default, family = "binomial", subset = train)
+probs <- predict(fit.glm, newdata = Default[-train, ], type = "response")
+pred.glm <- rep("No", length(probs))
+pred.glm[probs > 0.5] <- "Yes"
+mean(pred.glm != Default[-train, ]$default)
+```
+    
+     It seems that these values of test error vary greatly depending on the included observations in the
+     training set, and which are included in the validation set. 
+     
+```{r}
+# Part D
+train <- sample(dim(Default)[1], dim(Default)[1] / 2)
+fit.glm <- glm(default ~ income + balance + student, data = Default, family = "binomial", subset = train)
+pred.glm <- rep("No", length(probs))
+probs <- predict(fit.glm, newdata = Default[-train, ], type = "response")
+pred.glm[probs > 0.5] <- "Yes"
+mean(pred.glm != Default[-train, ]$default)
+```
+
+    Adding the "student" dummy variable did relatively nothing to decrease the validation set estimate
+    of test error. 
+
+Exercise 5.8:
+
+- Part A
+```{r}
+set.seed(1)
+x <- rnorm(100)
+y <- x - 2 * x^2 + rnorm(100)
+```
+
+    For this data set we have n = 100 observations with p = 2.
+    Using : Y = x - 2x^2 + error
+
+- Part B
+```{r}
+plot(x,y)
+```
+
+    This plot suggests a negative parabola curve.
+- Part C    
+```{r}
+# i
+library(boot)
+set.seed(1)
+points <- data.frame(x, y)
+fit.glm.1 <- glm(y ~ x)
+cv.glm(points, fit.glm.1)$delta[1]
+
+#ii
+fit.glm.2 <- glm(y ~ poly(x, 2))
+cv.glm(points, fit.glm.2)$delta[1]
+
+#iii
+fit.glm.3 <- glm(y ~ poly(x, 3))
+cv.glm(points, fit.glm.3)$delta[1]
+
+#iv
+fit.glm.4 <- glm(y ~ poly(x, 4))
+cv.glm(points, fit.glm.4)$delta[1]
+```
+- Part D
+
+```{r}
+#1
+set.seed(14)
+fit.glm.1 <- glm(y ~ x)
+cv.glm(points, fit.glm.1)$delta[1]
+
+#ii
+fit.glm.2 <- glm(y ~ poly(x, 2))
+cv.glm(points, fit.glm.2)$delta[1]
+
+#iii
+fit.glm.3 <- glm(y ~ poly(x, 3))
+cv.glm(points, fit.glm.3)$delta[1]
+
+#iv
+fit.glm.4 <- glm(y ~ poly(x, 4))
+cv.glm(points, fit.glm.4)$delta[1]
+```
+
+    Even when the seed is changed the values are still remaining consistent. This is because in LOOCV, we are 
+    evaluating N folds of a single observation. (Seed/Starting point doesn't matter.)
+
+- Part E
+
+    Since we saw the negative parabola, we can assume that the best model would be the quadratic model.
+    This is true, because our second model, the quadratic one, contains the lowest error.
+
+- Part F
+
+```{r}
+summary(fit.glm.4)
+```
+
+    This tells us that the first two models were statistically significant, linear and quadratic, whereas the last
+    two models were not, the cubic and quartic. (Which makes sense with our data!)
+
+
+Exercise 6.4:
+
+A.
+
+    Steadily Increase. We are becoming less flexible. increase Rss
+    
+B.
+
+    Decrease Initially, and then start increasing in a U shape.
+    
+C.
+
+    Steadily Decrease. We are becoming less flexible. Decrease variance. 
+    
+D.
+    
+    Steadily Increase. We are becoming less flexible. Increase Bias.
+    
+E.
+
+    Remain Constant. The irreducible error is independant of the model and lambda.
+    
+
+Exercise 6.9:
+- Part A
+```{r}
+library(ISLR)
+data(College)
+set.seed(11)
+train = sample(1:dim(College)[1], dim(College)[1] / 2)
+test <- -train
+College.train <- College[train, ]
+College.test <- College[test, ]
+```
+
+- Part B
+```{r}
+fit.lm <- lm(Apps ~ ., data = College.train)
+pred.lm <- predict(fit.lm, College.test)
+mean((pred.lm - College.test$Apps)^2)
+```
+
+- Part C
+```{r}
+library(glmnet)
+train.mat <- model.matrix(Apps ~ ., data = College.train)
+test.mat <- model.matrix(Apps ~ ., data = College.test)
+grid <- 10 ^ seq(4, -2, length = 100)
+fit.ridge <- glmnet(train.mat, College.train$Apps, alpha = 0, lambda = grid, thresh = 1e-12)
+cv.ridge <- cv.glmnet(train.mat, College.train$Apps, alpha = 0, lambda = grid, thresh = 1e-12)
+bestlam.ridge <- cv.ridge$lambda.min
+bestlam.ridge
+
+pred.ridge <- predict(fit.ridge, s = bestlam.ridge, newx = test.mat)
+mean((pred.ridge - College.test$Apps)^2)
+```
+
+    This Test MSE is higher for Ridge than least squares. 
+
+- Part D
+```{r}
+library(glmnet)
+fit.lasso <- glmnet(train.mat, College.train$Apps, alpha = 1, lambda = grid, thresh = 1e-12)
+cv.lasso <- cv.glmnet(train.mat, College.train$Apps, alpha = 1, lambda = grid, thresh = 1e-12)
+bestlam.lasso <- cv.lasso$lambda.min
+bestlam.lasso
+
+pred.lasso <- predict(fit.lasso, s = bestlam.lasso, newx = test.mat)
+mean((pred.lasso - College.test$Apps)^2)
+
+predict(fit.lasso, s = bestlam.lasso, type = "coefficients")
+```
+
+    Test MSE is still higher is Ridge than least squares.
+
+- Part E
+```{r}
+library(pls)
+
+fit.pcr <- pcr(Apps ~ ., data = College.train, scale = TRUE, validation = "CV")
+validationplot(fit.pcr, val.type = "MSEP")
+
+pred.pcr <- predict(fit.pcr, College.test, ncomp = 10)
+mean((pred.pcr - College.test$Apps)^2)
+```
+
+
+- Part F
+
+```{r}
+fit.pls <- plsr(Apps ~ ., data = College.train, scale = TRUE, validation = "CV")
+validationplot(fit.pls, val.type = "MSEP")
+
+pred.pls <- predict(fit.pls, College.test, ncomp = 10)
+mean((pred.pls - College.test$Apps)^2)
+```
+
+
+- Part G
+
+```{r}
+test.avg <- mean(College.test$Apps)
+linear.r2 <- 1 - mean((pred.lm - College.test$Apps)^2) / mean((test.avg - College.test$Apps)^2)
+ridge.r2 <- 1 - mean((pred.ridge - College.test$Apps)^2) / mean((test.avg - College.test$Apps)^2)
+lasso.r2 <- 1 - mean((pred.lasso - College.test$Apps)^2) / mean((test.avg - College.test$Apps)^2)
+pcr.r2 <- 1 - mean((pred.pcr - College.test$Apps)^2) / mean((test.avg - College.test$Apps)^2)
+pls.r2 <- 1 - mean((pred.pls - College.test$Apps)^2) / mean((test.avg - College.test$Apps)^2)
+
+linear.r2
+ridge.r2
+lasso.r2
+pcr.r2
+pls.r2
+```
+
+    It seems as though all models, except PCR, have a high accuracy rating. 
+    
